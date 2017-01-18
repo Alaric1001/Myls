@@ -6,7 +6,7 @@
 /*   By: asenat <asenat@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/04 16:59:09 by asenat            #+#    #+#             */
-/*   Updated: 2017/01/09 17:15:14 by asenat           ###   ########.fr       */
+/*   Updated: 2017/01/18 09:55:44 by asenat           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,88 +19,97 @@ void	writetitle(char *path)
 }
 
 int		readpath(t_list **lst, char *path, int (*stock)(t_list**,
-			struct dirent*, char *path))
+			struct dirent*, char *path), int rec)
 {
 	static struct dirent	*dirent;
 	DIR						*dir;
+	char					*npath;
 
 	if (!(dir = opendir(path)))
 	{
-		if (errno == ENOTDIR) //TODO
-			return (2);
-		else
+		if (rec)
+		{
+			ft_writequeue();
 			perror(path);
+		}
 		return (0);
 	}
 	lst = &(*lst)->next;
 	while ((dirent = readdir(dir)))
-		if(stock(&(*lst), dirent, path))
+	{
+		if (stock(lst, dirent, (npath = path_append(path, dirent->d_name))))
 			lst = &(*lst)->next;
+		ft_strdel(&npath);
+	}
 	closedir(dir);
 	return (1);
 }
 
-t_list	*standard_way(char *path, t_set *set)
+t_list	*standard_way(char *path, t_set set, int rec)
 {
 	t_list	*list;
 	t_list	*tmp;
 	int		ret;
 
-	list = ft_lstnew(newstat(path, 0, 0), sizeof(struct s_stat));
-	if (!(ret = readpath(&list, path, set->stock)))
+	list = newlistandfree(newstat(0, 0));
+	if (set.writetitle)
+		writetitle(path);
+	if (!(ret = readpath(&list, path, set.stock, rec)))
+	{
+		ft_lstdelone(&list, delstat);
 		return (NULL);
-	if (set->sort)
-		set->sort(&list);
-	if (set->rev)
+	}
+	if (set.sort)
+		set.sort(&list);
+	if (set.rev)
 		ft_lstrev(&(list->next));
 	tmp = list;
 	while ((tmp = tmp->next))
-		set->disp(&tmp);
+		set.disp(&tmp);
 	return (list);
 }
 
-void	recursive_way(char *path, t_set *set)
+void	recursive_way(char *path, t_set set)
 {
 	t_list	*l;
 	t_list	*dir;
-	t_list	*tmp;
 	char	*npath;
 
-	if((!(l = standard_way(path, set))))
+	if ((!(l = standard_way(path, set, 1))))
 		return ;
 	dir = getdirs(path, &l);
-	while (dir)
+	while ((dir))
 	{
 		if ((npath = (char*)(dir->content)))
 		{
-			writetitle(npath);
+			ft_queuechar('\n');
+			set.writetitle = 1;
 			recursive_way(npath, set);
 		}
-		ft_strdel(&npath);
-		tmp = dir->next;
-		ft_memdel((void**)&dir);
-		dir = tmp;
+		dir = freeandnext(dir, delstr);
 	}
 }
 
-void	start_process(char *path, char *options, int multargs)
+void	start_process(char *path, t_set set, int multargs, t_list *files)
 {
-	t_set *set;
+	t_list	*tmp;
 
-	set = (t_set*)ft_memalloc(sizeof(struct s_set));
-	set->rev = (ft_strchr(options, 'r')) ? 1 : 0;
-	if (ft_strchr(options, 'a'))
-		set->stock = &stockall;
-	else
-		set->stock = &stockvisible;
-	if (ft_strchr(options, 'l'))
-		set->disp = &advanced_disp;
-	else
-		set->disp = &standard_disp;
-	if (multargs)
-		writetitle(path);
-	if (ft_strchr(options, 'R'))
+	set.writetitle = multargs;
+	tmp = NULL;
+	if (!path)
+	{
+		if (set.sort)
+			set.sort(&files);
+		if (set.rev)
+			ft_lstrev(&(files->next));
+		tmp = files;
+		while ((tmp = freeandnext(tmp, delstat)))
+			set.disp(&tmp);
+		tmp = NULL;
+	}
+	else if (set.recursive)
 		recursive_way(path, set);
 	else
-		standard_way(path, set); //TODO DEL
+		tmp = standard_way(path, set, 0);
+	(tmp) ? ft_lstdel(&tmp, delstat) : 0;
 }

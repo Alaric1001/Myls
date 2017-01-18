@@ -6,7 +6,7 @@
 /*   By: asenat <asenat@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/01/06 10:48:43 by asenat            #+#    #+#             */
-/*   Updated: 2017/01/09 13:36:08 by asenat           ###   ########.fr       */
+/*   Updated: 2017/01/17 15:22:52 by asenat           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,10 @@
 
 int		stockall(t_list **lst, struct dirent *drent, char *path)
 {
-	(void)lst;
-	(void)drent;
+	t_stat *stat;
+
+	stat = newstat(drent->d_name, path);
+	*lst = ft_lstnew(stat, sizeof(struct s_stat));
+	ft_memdel((void**)&stat);
 	return (1);
 }
